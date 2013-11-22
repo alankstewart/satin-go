@@ -12,9 +12,9 @@ For a benchmark that captures profiling data, use ``go test -bench .``.
 
 For profiling details:
 
-  go test -bench . -cpuprofile cpu.out -memprofile mem.out
-  go tool pprof satin-go cpu.out
-  (pprof) top10
+    go test -bench . -cpuprofile cpu.out -memprofile mem.out
+    go tool pprof satin-go cpu.out
+    (pprof) top10
 
 Results
 =======
@@ -28,10 +28,10 @@ Test machine:
 
 C version (best of 3, run with ``make bench`` in the ``satin-c`` repository):
 
-* ./satin: 2.43 seconds
-* ./satinSingleThread: 16.79 seconds
+* ``./satin``: 2.43 seconds
+* ``./satinSingleThread``: 16.79 seconds
 
 golang version (best of 3, run with ``satin-go`` or ``satin-go -concurrent``):
 
-* satin-go -concurrent: 3.828 seconds
-* satin-go: 14.589 seconds
+* ``satin-go -concurrent``: 3.828 seconds
+* ``satin-go``: 14.589 seconds
