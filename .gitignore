@@ -1,0 +1,6 @@
+m*.out
+p*.out
+cpu.out
+mem.out
+*.test
+satin-go
