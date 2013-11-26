@@ -156,7 +156,7 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	var exprtemp = new([8 * 8001]float64)
 
 	for i := 0; i < 8001; i++ {
-		zInc := float64((i - 4000) / 25)
+		zInc := (float64(i) - 4000) / 25
 		exprtemp[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
 	}
 
