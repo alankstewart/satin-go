@@ -33,5 +33,5 @@ C version (best of 3, run with ``make bench`` in the ``satin-c`` repository):
 
 golang version (best of 3, run with ``satin-go`` or ``satin-go -concurrent``):
 
-* ``satin-go -concurrent``: 3.828 seconds
+* ``satin-go -concurrent``: 3.109 seconds
 * ``satin-go``: 14.589 seconds

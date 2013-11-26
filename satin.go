@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	N      = 10
+	N      = 100
 	RAD    = 18E-2
 	W1     = 3E-1
 	DR     = 2E-3
@@ -30,7 +30,7 @@ type gaussian struct {
 }
 
 type laser struct {
-	smallSignalGain   float64
+	smallSignalGain   float32
 	dischargePressure int
 	outputFile        string
 	carbonDioxide     string
@@ -62,11 +62,11 @@ func Calculate(goroutines bool) (success bool) {
 		ci = make(chan int)
 	}
 
-	for i := 0; i < lNum; i++ {
+	for l := 0; l < lNum; l++ {
 		if goroutines {
-			go process(i, pNum, inputPowerData, lasers)
+			go process(l, pNum, inputPowerData, lasers)
 		} else {
-			total += process(i, pNum, inputPowerData, lasers)
+			total += process(l, pNum, inputPowerData, lasers)
 		}
 
 	}
@@ -152,28 +152,27 @@ func getLaserData(lasers *[N]laser) int {
 	return i
 }
 
-func gaussianCalculation(inputPower int, smallSignalGain float64, gaussianData *[16]gaussian) {
-	var expr = new([8 * 8001]float64)
-
-	inputIntensity := 2 * float64(inputPower) / AREA
+func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *[16]gaussian) {
+	var exprtemp = new([8 * 8001]float64)
 
 	for i := 0; i < 8001; i++ {
-		zinc := float64((i - 4000) / 25)
-		expr[i] = zinc * 2 * DZ / (Z12 + math.Pow(zinc, 2))
+		zInc := float64((i - 4000) / 25)
+		exprtemp[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
 	}
 
-	expr2 := (smallSignalGain / 32000) * DZ
+	inputIntensity := 2 * float64(inputPower) / AREA
+	expr2 := float64((smallSignalGain / 32E3) * DZ)
 
 	i := 0
 	for saturationIntensity := 10E3; saturationIntensity <= 25E3; saturationIntensity += 1E3 {
 		outputPower := 0.0
-		expr3 := float64(saturationIntensity) * expr2
+		expr3 := saturationIntensity * expr2
 
 		for r := 0.0; r <= 0.5; r += DR {
-			outputIntensity := inputIntensity * math.Exp(-2*(r*r)/(RAD*RAD))
+			outputIntensity := inputIntensity * math.Exp(-2*math.Pow(r, 2)/math.Pow(RAD, 2))
 
 			for j := 0; j < 8001; j++ {
-				outputIntensity *= (1 + expr3/(float64(saturationIntensity)+outputIntensity) - expr[j])
+				outputIntensity *= (1 + expr3/(saturationIntensity+outputIntensity) - exprtemp[j])
 			}
 
 			outputPower += (outputIntensity * EXPR * r)
