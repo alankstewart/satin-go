@@ -21,6 +21,7 @@ const (
 	Z1     = math.Pi * (W1 * W1) / LAMBDA
 	Z12    = Z1 * Z1
 	EXPR   = 2 * math.Pi * DR
+	INCR   = 8001
 )
 
 type gaussian struct {
@@ -98,12 +99,12 @@ func process(i int, pNum int, inputPowerData *[N]int, lasers *[N]laser) (count i
 	}
 	defer fd.Close()
 
-	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f%%\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
+	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
 		time.Now(), lasers[i].dischargePressure, lasers[i].smallSignalGain, lasers[i].carbonDioxide)
 	count = 0
 	for j := 0; j < pNum; j++ {
 		gaussianCalculation(inputPowerData[j], lasers[i].smallSignalGain, gaussianData)
-		for k := 0; k < 16; k++ {
+		for k := 0; k < len(gaussianData); k++ {
 			inputPower := gaussianData[k].inputPower
 			outputPower := gaussianData[k].outputPower
 			saturationIntensity := gaussianData[k].saturationIntensity
@@ -153,9 +154,9 @@ func getLaserData(lasers *[N]laser) int {
 }
 
 func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *[16]gaussian) {
-	var exprtemp = new([8001]float64)
+	var exprtemp = new([INCR]float64)
 
-	for i := 0; i < 8001; i++ {
+	for i := 0; i < INCR; i++ {
 		zInc := (float64(i) - 4000) / 25
 		exprtemp[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
 	}
@@ -190,11 +191,9 @@ func gcalc(saturationIntensity float64, expr2 float64, exprtemp *[8001]float64, 
 
 	for r := 0.0; r <= 0.5; r += DR {
 		outputIntensity := inputIntensity * math.Exp(-2*math.Pow(r, 2)/math.Pow(RAD, 2))
-
-		for j := 0; j < 8001; j++ {
+		for j := 0; j < INCR; j++ {
 			outputIntensity *= (1 + expr3/(saturationIntensity+outputIntensity) - exprtemp[j])
 		}
-
 		outputPower += (outputIntensity * EXPR * r)
 	}
 	results.inputPower = inputPower
