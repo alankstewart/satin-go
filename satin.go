@@ -39,8 +39,14 @@ type laser struct {
 func main() {
 	concurrent := flag.Bool("concurrent", false, "Run via gorountines")
 	flag.Parse()
+
+	if *concurrent {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+		ci = make(chan int, N)
+	}
+
 	start := time.Now()
-	if !Calculate(*concurrent) {
+	if !Calculate() {
 		panic("Failed to complete")
 	}
 	end := time.Now()
@@ -49,7 +55,7 @@ func main() {
 
 var ci chan int = nil
 
-func Calculate(goroutines bool) (success bool) {
+func Calculate() (success bool) {
 	var lasers = new([N]laser)
 	var inputPowerData = new([N]int)
 	var total int = 0
@@ -57,21 +63,15 @@ func Calculate(goroutines bool) (success bool) {
 	pNum := getInputPowers(inputPowerData) // immutable; shared by goroutines
 	lNum := getLaserData(lasers)           // immutable; shared by goroutines
 
-	if goroutines {
-		runtime.GOMAXPROCS(runtime.NumCPU())
-		ci = make(chan int)
-	}
-
 	for l := 0; l < lNum; l++ {
-		if goroutines {
+		if ci != nil {
 			go process(l, pNum, inputPowerData, lasers)
 		} else {
 			total += process(l, pNum, inputPowerData, lasers)
 		}
-
 	}
 
-	if goroutines {
+	if ci != nil {
 		i := 0
 	L:
 		for {
@@ -153,7 +153,7 @@ func getLaserData(lasers *[N]laser) int {
 }
 
 func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *[16]gaussian) {
-	var exprtemp = new([8 * 8001]float64)
+	var exprtemp = new([8001]float64)
 
 	for i := 0; i < 8001; i++ {
 		zInc := (float64(i) - 4000) / 25
@@ -164,22 +164,43 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	expr2 := float64((smallSignalGain / 32E3) * DZ)
 
 	i := 0
+	var waitChan chan bool
+	if ci != nil {
+		waitChan = make(chan bool, 15)
+	}
 	for saturationIntensity := 10E3; saturationIntensity <= 25E3; saturationIntensity += 1E3 {
-		outputPower := 0.0
-		expr3 := saturationIntensity * expr2
-
-		for r := 0.0; r <= 0.5; r += DR {
-			outputIntensity := inputIntensity * math.Exp(-2*math.Pow(r, 2)/math.Pow(RAD, 2))
-
-			for j := 0; j < 8001; j++ {
-				outputIntensity *= (1 + expr3/(saturationIntensity+outputIntensity) - exprtemp[j])
-			}
-
-			outputPower += (outputIntensity * EXPR * r)
+		results := &gaussianData[i]
+		if ci == nil {
+			gcalc(saturationIntensity, expr2, exprtemp, inputPower, inputIntensity, results, nil)
+		} else {
+			go gcalc(saturationIntensity, expr2, exprtemp, inputPower, inputIntensity, results, waitChan)
 		}
-		gaussianData[i].inputPower = inputPower
-		gaussianData[i].saturationIntensity = int(saturationIntensity)
-		gaussianData[i].outputPower = outputPower
 		i++
+	}
+	if ci != nil {
+		for saturationIntensity := 10E3; saturationIntensity <= 25E3; saturationIntensity += 1E3 {
+			<-waitChan
+		}
+	}
+}
+
+func gcalc(saturationIntensity float64, expr2 float64, exprtemp *[8001]float64, inputPower int, inputIntensity float64, results *gaussian, waitChan chan bool) {
+	outputPower := 0.0
+	expr3 := saturationIntensity * expr2
+
+	for r := 0.0; r <= 0.5; r += DR {
+		outputIntensity := inputIntensity * math.Exp(-2*math.Pow(r, 2)/math.Pow(RAD, 2))
+
+		for j := 0; j < 8001; j++ {
+			outputIntensity *= (1 + expr3/(saturationIntensity+outputIntensity) - exprtemp[j])
+		}
+
+		outputPower += (outputIntensity * EXPR * r)
+	}
+	results.inputPower = inputPower
+	results.saturationIntensity = int(saturationIntensity)
+	results.outputPower = outputPower
+	if waitChan != nil {
+		waitChan <- true
 	}
 }
