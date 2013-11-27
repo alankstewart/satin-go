@@ -183,7 +183,7 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	}
 }
 
-func gcalc(saturationIntensity float64, expr2 float64, exprtemp *[8001]float64, inputPower int, inputIntensity float64, results *gaussian, waitChan chan bool) {
+func gcalc(saturationIntensity float64, expr2 float64, exprtemp *[INCR]float64, inputPower int, inputIntensity float64, results *gaussian, waitChan chan bool) {
 	outputPower := 0.0
 	expr3 := saturationIntensity * expr2
 
