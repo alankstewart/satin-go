@@ -28,7 +28,7 @@ execution.
 | --------- | -------- | -------- | ---------------------------- | ------------------------------------------------------------------------ |
 | 1         | 4.8.2    | 1.1.2    | Linux 3.12.1-1-ARCH x86_64   | Sony Vaio Series SVZ13115GGXI (8 GB RAM; 256 GB SSD; Intel i7-3612QM)    |
 
-| Config ID | C satin              | go-satin             | C satin -concurrent  | go-satin -concurrent |
+| Config ID | C satin              | satin-go             | C satin -concurrent  | satin-go -concurrent |
 | --------- | -------------------- | -------------------- | -------------------- | -------------------- |
 | 1         | 16.79                | 14.613               | 2.38                 | 2.032                |
 
