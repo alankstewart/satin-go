@@ -98,7 +98,7 @@ func process(i int, pNum int, inputPowerData *[N]int, lasers *[N]laser) (count i
 	}
 	defer fd.Close()
 
-	fmt.Fprintf(fd, "Start date: %s\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f%%\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
+	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f%%\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
 		time.Now(), lasers[i].dischargePressure, lasers[i].smallSignalGain, lasers[i].carbonDioxide)
 	count = 0
 	for j := 0; j < pNum; j++ {
