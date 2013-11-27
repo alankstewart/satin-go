@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func BenchmarkSingleThread(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -9,6 +12,8 @@ func BenchmarkSingleThread(b *testing.B) {
 }
 
 func BenchmarkGoroutines(b *testing.B) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	ci = make(chan int, N)
 	for i := 0; i < b.N; i++ {
 		Calculate()
 	}
