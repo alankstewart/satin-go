@@ -16,22 +16,19 @@ For profiling details:
     go tool pprof satin-go cpu.out
     (pprof) top10
 
-Results
-=======
+Performance Results
+===================
 
-Test machine:
+Use ``satin-c`` or ``satin-go`` repositories, compile and run the resulting
+binaries. Execute three times and then record the fastest execution time (as
+reported in seconds during execution) below. Lower numbers indicate faster
+execution.
 
-* Sony Vaio Series SVZ13115GGXI (8 GB RAM; 256 GB SSD; Intel i7-3612QM)
-* Linux 3.12.0-1-ARCH x86_64
-* GCC 4.8.2
-* Go 1.1.2
+| Config ID | GCC      | Go       | OS                           | Hardware                                                                 |
+| --------- | -------- | -------- | ---------------------------- | ------------------------------------------------------------------------ |
+| 1         | 4.8.2    | 1.1.2    | Linux 3.12.1-1-ARCH x86_64   | Sony Vaio Series SVZ13115GGXI (8 GB RAM; 256 GB SSD; Intel i7-3612QM)    |
 
-C version (best of 3, run with ``make bench`` in the ``satin-c`` repository):
+| Config ID | C satin              | satin-go             | C satin -concurrent  | satin-go -concurrent |
+| --------- | -------------------- | -------------------- | -------------------- | -------------------- |
+| 1         | 16.79                | 14.613               | 2.38                 | 2.032                |
 
-* ``./satin``: 2.43 seconds
-* ``./satinSingleThread``: 16.79 seconds
-
-golang version (best of 3, run with ``satin-go`` or ``satin-go -concurrent``):
-
-* ``satin-go -concurrent``: 3.109 seconds
-* ``satin-go``: 14.589 seconds
