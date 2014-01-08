@@ -3,7 +3,7 @@ satin-go
 
 CO2 Laser Saturation Intensity calculation in Go
 
-For a similar standalone utility to the [a link](https://github.com/alankstewart/satin-c) version, use ``go build`` and run
+For a similar standalone utility to the [satin-c](https://github.com/alankstewart/satin-c) version, use ``go build`` and run
 ``satin-go``. Use ``satin-go -concurrent`` to use goroutines.
 
 For a benchmark that captures profiling data, use ``go test -bench .``.
