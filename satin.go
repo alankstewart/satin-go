@@ -148,7 +148,7 @@ func getLaserData(lasers *[N]laser) int {
 			return i
 		}
 	}
-	return i
+	return 0
 }
 
 func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *[16]gaussian) {
