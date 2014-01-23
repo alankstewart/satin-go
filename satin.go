@@ -57,18 +57,18 @@ func main() {
 var ci chan int = nil
 
 func Calculate() (success bool) {
-	var lasers = new([N]laser)
-	var inputPowerData = new([N]int)
+	var laserData = new([N]laser)
+	var inputPowers = new([N]int)
 	var total int = 0
 
-	pNum := getInputPowers(inputPowerData) // immutable; shared by goroutines
-	lNum := getLaserData(lasers)           // immutable; shared by goroutines
+	pNum := getInputPowers(inputPowers) // immutable; shared by goroutines
+	lNum := getLaserData(laserData)     // immutable; shared by goroutines
 
 	for l := 0; l < lNum; l++ {
 		if ci != nil {
-			go process(l, pNum, inputPowerData, lasers)
+			go process(l, pNum, inputPowers, laserData)
 		} else {
-			total += process(l, pNum, inputPowerData, lasers)
+			total += process(l, pNum, inputPowers, laserData)
 		}
 	}
 
@@ -90,20 +90,20 @@ func Calculate() (success bool) {
 	return total == pNum*lNum
 }
 
-func process(i int, pNum int, inputPowerData *[N]int, lasers *[N]laser) (count int) {
+func process(i int, pNum int, inputPowers *[N]int, laserData *[N]laser) (count int) {
 	var gaussianData = new([16]gaussian)
 
-	fd, err := os.Create(lasers[i].outputFile)
+	fd, err := os.Create(laserData[i].outputFile)
 	if err != nil {
 		panic(err)
 	}
 	defer fd.Close()
 
 	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
-		time.Now(), lasers[i].dischargePressure, lasers[i].smallSignalGain, lasers[i].carbonDioxide)
+		time.Now(), laserData[i].dischargePressure, laserData[i].smallSignalGain, laserData[i].carbonDioxide)
 	count = 0
 	for j := 0; j < pNum; j++ {
-		gaussianCalculation(inputPowerData[j], lasers[i].smallSignalGain, gaussianData)
+		gaussianCalculation(inputPowers[j], laserData[i].smallSignalGain, gaussianData)
 		for k := 0; k < len(gaussianData); k++ {
 			inputPower := gaussianData[k].inputPower
 			outputPower := gaussianData[k].outputPower
@@ -134,16 +134,16 @@ func getInputPowers(inputPowers *[N]int) int {
 	return 0
 }
 
-func getLaserData(lasers *[N]laser) int {
-	const gainMediumDataFile = "laser.dat"
-	fd, err := os.Open(gainMediumDataFile)
+func getLaserData(laserData *[N]laser) int {
+	const laserDataFile = "laser.dat"
+	fd, err := os.Open(laserDataFile)
 	if err != nil {
 		panic(err)
 	}
 	defer fd.Close()
 	var i int
 	for i = 0; i < N; i++ {
-		_, err := fmt.Fscanf(fd, "%s %f %d %s \n", &lasers[i].outputFile, &lasers[i].smallSignalGain, &lasers[i].dischargePressure, &lasers[i].carbonDioxide)
+		_, err := fmt.Fscanf(fd, "%s %f %d %s \n", &laserData[i].outputFile, &laserData[i].smallSignalGain, &laserData[i].dischargePressure, &laserData[i].carbonDioxide)
 		if err != nil && err == io.EOF {
 			return i
 		}
@@ -152,11 +152,11 @@ func getLaserData(lasers *[N]laser) int {
 }
 
 func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *[16]gaussian) {
-	var exprtemp = new([INCR]float64)
+	var expr1 = new([INCR]float64)
 
 	for i := 0; i < INCR; i++ {
 		zInc := (float64(i) - 4000) / 25
-		exprtemp[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
+		expr1[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
 	}
 
 	inputIntensity := 2 * float64(inputPower) / AREA
@@ -168,11 +168,11 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 		waitChan = make(chan bool, 15)
 	}
 	for saturationIntensity := 10E3; saturationIntensity <= 25E3; saturationIntensity += 1E3 {
-		results := &gaussianData[i]
+		gaussians := &gaussianData[i]
 		if ci == nil {
-			gcalc(saturationIntensity, expr2, exprtemp, inputPower, inputIntensity, results, nil)
+			gcalc(saturationIntensity, expr1, expr2, inputPower, inputIntensity, gaussians, nil)
 		} else {
-			go gcalc(saturationIntensity, expr2, exprtemp, inputPower, inputIntensity, results, waitChan)
+			go gcalc(saturationIntensity, expr1, expr2, inputPower, inputIntensity, gaussians, waitChan)
 		}
 		i++
 	}
@@ -183,20 +183,20 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	}
 }
 
-func gcalc(saturationIntensity float64, expr2 float64, exprtemp *[INCR]float64, inputPower int, inputIntensity float64, results *gaussian, waitChan chan bool) {
+func gcalc(saturationIntensity float64, expr1 *[INCR]float64, expr2 float64, inputPower int, inputIntensity float64, gaussians *gaussian, waitChan chan bool) {
 	outputPower := 0.0
 	expr3 := saturationIntensity * expr2
 
 	for r := 0.0; r <= 0.5; r += DR {
 		outputIntensity := inputIntensity * math.Exp(-2*math.Pow(r, 2)/math.Pow(RAD, 2))
 		for j := 0; j < INCR; j++ {
-			outputIntensity *= (1 + expr3/(saturationIntensity+outputIntensity) - exprtemp[j])
+			outputIntensity *= (1 + expr3/(saturationIntensity+outputIntensity) - expr1[j])
 		}
 		outputPower += (outputIntensity * EXPR * r)
 	}
-	results.inputPower = inputPower
-	results.saturationIntensity = int(saturationIntensity)
-	results.outputPower = outputPower
+	gaussians.inputPower = inputPower
+	gaussians.saturationIntensity = int(saturationIntensity)
+	gaussians.outputPower = outputPower
 	if waitChan != nil {
 		waitChan <- true
 	}
