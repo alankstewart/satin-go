@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	N      = 100
+	N      = 10
 	RAD    = 18E-2
 	W1     = 3E-1
 	DR     = 2E-3
@@ -37,30 +37,29 @@ type laser struct {
 	carbonDioxide     string
 }
 
+var ci chan int = nil
+
 func main() {
 	concurrent := flag.Bool("concurrent", false, "Run via gorountines")
 	flag.Parse()
 
-	if *concurrent {
-		runtime.GOMAXPROCS(runtime.NumCPU())
-		ci = make(chan int, N)
-	}
-
 	start := time.Now()
-	Calculate()
+	Calculate(*concurrent)
 	end := time.Now()
 	fmt.Printf("The time was %v.\n", end.Sub(start))
 }
 
-var ci chan int = nil
-
-func Calculate() {
-	var total int = 0
-
+func Calculate(concurrent bool) {
 	inputPowers := getInputPowers() // immutable; shared by goroutines
 	laserData := getLaserData()     // immutable; shared by goroutines
+	lNum := len(laserData)
 
-	for l := 0; l < len(laserData); l++ {
+	if concurrent {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+		ci = make(chan int, lNum)
+	}
+
+	for l := 0; l < lNum; l++ {
 		if ci != nil {
 			go process(inputPowers, laserData[l])
 		} else {
@@ -73,10 +72,9 @@ func Calculate() {
 	L:
 		for {
 			select {
-			case count := <-ci:
-				total += count
+			case <-ci:
 				i++
-				if i == len(laserData) {
+				if i == lNum {
 					break L
 				}
 			}
@@ -92,7 +90,7 @@ func getInputPowers() []int {
 	}
 	defer fd.Close()
 
-	inputPowers := make([]int, 2)
+	inputPowers := make([]int, N)
 	i := 0
 	for {
 		_, err := fmt.Fscanf(fd, "%d \n", &inputPowers[i])
@@ -103,7 +101,6 @@ func getInputPowers() []int {
 
 		i++
 		if i == len(inputPowers) {
-			fmt.Printf("i = %d, resizing input powers\n", i)
 			newSlice := make([]int, i*2)
 			copy(newSlice, inputPowers)
 			inputPowers = newSlice
@@ -120,7 +117,7 @@ func getLaserData() []laser {
 	}
 	defer fd.Close()
 
-	laserData := make([]laser, 2)
+	laserData := make([]laser, N)
 	i := 0
 	for {
 		_, err := fmt.Fscanf(fd, "%s %f %d %s \n", &laserData[i].outputFile, &laserData[i].smallSignalGain, &laserData[i].dischargePressure, &laserData[i].carbonDioxide)
@@ -131,7 +128,6 @@ func getLaserData() []laser {
 
 		i++
 		if i == len(laserData) {
-			fmt.Printf("i = %d, resizing laser\n", i)
 			newSlice := make([]laser, i*2)
 			copy(newSlice, laserData)
 			laserData = newSlice
@@ -140,7 +136,7 @@ func getLaserData() []laser {
 	return nil
 }
 
-func process(inputPowers []int, laserData laser) (count int) {
+func process(inputPowers []int, laserData laser) {
 	fd, err := os.Create(laserData.outputFile)
 	if err != nil {
 		panic(err)
@@ -149,20 +145,19 @@ func process(inputPowers []int, laserData laser) (count int) {
 
 	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
 		time.Now(), laserData.dischargePressure, laserData.smallSignalGain, laserData.carbonDioxide)
-	count = 0
-	for j := 0; j < len(inputPowers); j++ {
+
+	for i := 0; i < len(inputPowers); i++ {
 		var gaussianData = new([16]gaussian)
-		gaussianCalculation(inputPowers[j], laserData.smallSignalGain, gaussianData)
-		for k := 0; k < len(gaussianData); k++ {
-			inputPower := gaussianData[k].inputPower
-			outputPower := gaussianData[k].outputPower
-			fmt.Fprintf(fd, "%d\t\t%7.3f\t\t%d\t\t%5.3f\t\t%7.3f\n", inputPower, outputPower, gaussianData[k].saturationIntensity, math.Log(outputPower/float64(inputPower)), outputPower-float64(inputPower))
+		gaussianCalculation(inputPowers[i], laserData.smallSignalGain, gaussianData)
+		for j := 0; j < len(gaussianData); j++ {
+			inputPower := gaussianData[j].inputPower
+			outputPower := gaussianData[j].outputPower
+			fmt.Fprintf(fd, "%d\t\t%7.3f\t\t%d\t\t%5.3f\t\t%7.3f\n", inputPower, outputPower, gaussianData[j].saturationIntensity, math.Log(outputPower/float64(inputPower)), outputPower-float64(inputPower))
 		}
-		count++
 	}
 	fmt.Fprintf(fd, "\nEnd date: %s\n", time.Now())
 	if ci != nil {
-		ci <- count
+		ci <- len(inputPowers)
 	}
 	return
 }
