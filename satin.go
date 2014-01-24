@@ -47,28 +47,24 @@ func main() {
 	}
 
 	start := time.Now()
-	if !Calculate() {
-		panic("Failed to complete")
-	}
+	Calculate()
 	end := time.Now()
 	fmt.Printf("The time was %v.\n", end.Sub(start))
 }
 
 var ci chan int = nil
 
-func Calculate() (success bool) {
-	var laserData = new([N]laser)
-	var inputPowers = new([N]int)
+func Calculate() {
 	var total int = 0
 
-	pNum := getInputPowers(inputPowers) // immutable; shared by goroutines
-	lNum := getLaserData(laserData)     // immutable; shared by goroutines
+	inputPowers := getInputPowers() // immutable; shared by goroutines
+	laserData := getLaserData()     // immutable; shared by goroutines
 
-	for l := 0; l < lNum; l++ {
+	for l := 0; l < len(laserData); l++ {
 		if ci != nil {
-			go process(l, pNum, inputPowers, laserData)
+			go process(inputPowers, laserData[l])
 		} else {
-			total += process(l, pNum, inputPowers, laserData)
+			process(inputPowers, laserData[l])
 		}
 	}
 
@@ -80,30 +76,83 @@ func Calculate() (success bool) {
 			case count := <-ci:
 				total += count
 				i++
-				if i == lNum {
+				if i == len(laserData) {
 					break L
 				}
 			}
 		}
 	}
-
-	return total == pNum*lNum
 }
 
-func process(i int, pNum int, inputPowers *[N]int, laserData *[N]laser) (count int) {
-	var gaussianData = new([16]gaussian)
+func getInputPowers() []int {
+	const inputPowerFile = "pin.dat"
+	fd, err := os.Open(inputPowerFile)
+	if err != nil {
+		panic(err)
+	}
+	defer fd.Close()
 
-	fd, err := os.Create(laserData[i].outputFile)
+	inputPowers := make([]int, 2)
+	i := 0
+	for {
+		_, err := fmt.Fscanf(fd, "%d \n", &inputPowers[i])
+		if err != nil && err == io.EOF {
+			inputPowers = inputPowers[0:i]
+			return inputPowers
+		}
+
+		i++
+		if i == len(inputPowers) {
+			fmt.Printf("i = %d, resizing input powers\n", i)
+			newSlice := make([]int, i*2)
+			copy(newSlice, inputPowers)
+			inputPowers = newSlice
+		}
+	}
+	return nil
+}
+
+func getLaserData() []laser {
+	const laserDataFile = "laser.dat"
+	fd, err := os.Open(laserDataFile)
+	if err != nil {
+		panic(err)
+	}
+	defer fd.Close()
+
+	laserData := make([]laser, 2)
+	i := 0
+	for {
+		_, err := fmt.Fscanf(fd, "%s %f %d %s \n", &laserData[i].outputFile, &laserData[i].smallSignalGain, &laserData[i].dischargePressure, &laserData[i].carbonDioxide)
+		if err != nil && err == io.EOF {
+			laserData = laserData[0:i]
+			return laserData
+		}
+
+		i++
+		if i == len(laserData) {
+			fmt.Printf("i = %d, resizing laser\n", i)
+			newSlice := make([]laser, i*2)
+			copy(newSlice, laserData)
+			laserData = newSlice
+		}
+	}
+	return nil
+}
+
+func process(inputPowers []int, laserData laser) (count int) {
+	fd, err := os.Create(laserData.outputFile)
 	if err != nil {
 		panic(err)
 	}
 	defer fd.Close()
 
 	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
-		time.Now(), laserData[i].dischargePressure, laserData[i].smallSignalGain, laserData[i].carbonDioxide)
+		time.Now(), laserData.dischargePressure, laserData.smallSignalGain, laserData.carbonDioxide)
 	count = 0
-	for j := 0; j < pNum; j++ {
-		gaussianCalculation(inputPowers[j], laserData[i].smallSignalGain, gaussianData)
+	for j := 0; j < len(inputPowers); j++ {
+		var gaussianData = new([16]gaussian)
+		gaussianCalculation(inputPowers[j], laserData.smallSignalGain, gaussianData)
 		for k := 0; k < len(gaussianData); k++ {
 			inputPower := gaussianData[k].inputPower
 			outputPower := gaussianData[k].outputPower
@@ -116,39 +165,6 @@ func process(i int, pNum int, inputPowers *[N]int, laserData *[N]laser) (count i
 		ci <- count
 	}
 	return
-}
-
-func getInputPowers(inputPowers *[N]int) int {
-	const inputPowerFile = "pin.dat"
-	fd, err := os.Open(inputPowerFile)
-	if err != nil {
-		panic(err)
-	}
-	defer fd.Close()
-	for i := 0; i < N; i++ {
-		_, err := fmt.Fscanf(fd, "%d \n", &inputPowers[i])
-		if err != nil && err == io.EOF {
-			return i
-		}
-	}
-	return 0
-}
-
-func getLaserData(laserData *[N]laser) int {
-	const laserDataFile = "laser.dat"
-	fd, err := os.Open(laserDataFile)
-	if err != nil {
-		panic(err)
-	}
-	defer fd.Close()
-	var i int
-	for i = 0; i < N; i++ {
-		_, err := fmt.Fscanf(fd, "%s %f %d %s \n", &laserData[i].outputFile, &laserData[i].smallSignalGain, &laserData[i].dischargePressure, &laserData[i].carbonDioxide)
-		if err != nil && err == io.EOF {
-			return i
-		}
-	}
-	return 0
 }
 
 func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *[16]gaussian) {
