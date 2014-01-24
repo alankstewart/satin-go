@@ -146,7 +146,8 @@ func process(inputPowers []int, laserData laser) {
 	fmt.Fprintf(fd, "Start date: %s\n\nGaussian Beam\n\nPressure in Main Discharge = %dkPa\nSmall-signal Gain = %4.1f\nCO2 via %s\n\nPin\t\tPout\t\tSat. Int\tln(Pout/Pin)\tPout-Pin\n(watts)\t\t(watts)\t\t(watts/cm2)\t\t\t(watts)\n",
 		time.Now(), laserData.dischargePressure, laserData.smallSignalGain, laserData.carbonDioxide)
 
-	for i := 0; i < len(inputPowers); i++ {
+	pNum := len(inputPowers)
+	for i := 0; i < pNum; i++ {
 		var gaussianData = new([16]gaussian)
 		gaussianCalculation(inputPowers[i], laserData.smallSignalGain, gaussianData)
 		for j := 0; j < len(gaussianData); j++ {
@@ -158,7 +159,7 @@ func process(inputPowers []int, laserData laser) {
 
 	fmt.Fprintf(fd, "\nEnd date: %s\n", time.Now())
 	if ci != nil {
-		ci <- len(inputPowers)
+		ci <- pNum
 	}
 	return
 }
