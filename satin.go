@@ -155,6 +155,7 @@ func process(inputPowers []int, laserData laser) {
 			fmt.Fprintf(fd, "%d\t\t%7.3f\t\t%d\t\t%5.3f\t\t%7.3f\n", inputPower, outputPower, gaussianData[j].saturationIntensity, math.Log(outputPower/float64(inputPower)), outputPower-float64(inputPower))
 		}
 	}
+
 	fmt.Fprintf(fd, "\nEnd date: %s\n", time.Now())
 	if ci != nil {
 		ci <- len(inputPowers)
