@@ -44,12 +44,12 @@ func main() {
 	flag.Parse()
 
 	start := time.Now()
-	calculate(*concurrent)
+	Calculate(*concurrent)
 	end := time.Now()
 	fmt.Printf("The time was %v.\n", end.Sub(start))
 }
 
-func calculate(concurrent bool) {
+func Calculate(concurrent bool) {
 	inputPowers := getInputPowers() // immutable; shared by goroutines
 	laserData := getLaserData()     // immutable; shared by goroutines
 	lNum := len(laserData)
