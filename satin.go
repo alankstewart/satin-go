@@ -168,7 +168,7 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	var expr1 = new([INCR]float64)
 
 	for i := 0; i < INCR; i++ {
-		zInc := (float64(i) - 4000) / 25
+		zInc := (float64(i) - INCR / 2) / 25
 		expr1[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
 	}
 
