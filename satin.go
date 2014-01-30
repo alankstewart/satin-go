@@ -60,10 +60,10 @@ func Calculate(concurrent bool) {
 	}
 
 	for l := 0; l < lNum; l++ {
-		if ci != nil {
-			go process(inputPowers, laserData[l])
-		} else {
+		if ci == nil {
 			process(inputPowers, laserData[l])
+		} else {
+			go process(inputPowers, laserData[l])
 		}
 	}
 
@@ -168,7 +168,7 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	var expr1 = new([INCR]float64)
 
 	for i := 0; i < INCR; i++ {
-		zInc := (float64(i) - INCR / 2) / 25
+		zInc := (float64(i) - INCR/2) / 25
 		expr1[i] = zInc * 2 * DZ / (Z12 + math.Pow(zInc, 2))
 	}
 
@@ -183,9 +183,9 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	for saturationIntensity := 10E3; saturationIntensity <= 25E3; saturationIntensity += 1E3 {
 		gaussians := &gaussianData[i]
 		if ci == nil {
-			gcalc(saturationIntensity, expr1, expr2, inputPower, inputIntensity, gaussians, nil)
+			gcalc(inputPower, expr1, inputIntensity, expr2, saturationIntensity, gaussians, nil)
 		} else {
-			go gcalc(saturationIntensity, expr1, expr2, inputPower, inputIntensity, gaussians, waitChan)
+			go gcalc(inputPower, expr1, inputIntensity, expr2, saturationIntensity, gaussians, waitChan)
 		}
 		i++
 	}
@@ -196,7 +196,7 @@ func gaussianCalculation(inputPower int, smallSignalGain float32, gaussianData *
 	}
 }
 
-func gcalc(saturationIntensity float64, expr1 *[INCR]float64, expr2 float64, inputPower int, inputIntensity float64, gaussians *gaussian, waitChan chan bool) {
+func gcalc(inputPower int, expr1 *[INCR]float64, inputIntensity float64, expr2 float64, saturationIntensity float64, gaussians *gaussian, waitChan chan bool) {
 	outputPower := 0.0
 	expr3 := saturationIntensity * expr2
 
