@@ -40,7 +40,7 @@ type laser struct {
 var ci chan int = nil
 
 func main() {
-	concurrent := flag.Bool("concurrent", false, "Run via gorountines")
+	concurrent := flag.Bool("concurrent", true, "Run via gorountines")
 	flag.Parse()
 
 	start := time.Now()
